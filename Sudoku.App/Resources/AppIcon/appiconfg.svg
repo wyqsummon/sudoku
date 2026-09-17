@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="456" height="456" viewBox="0 0 456 456" version="1.1" xmlns="http://www.w3.org/2000/svg">
+    <!-- 数独盘面：粗边框 + 井字分隔线 -->
+    <g fill="none" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="112" y="112" width="232" height="232" rx="22" stroke-width="16" />
+        <path d="M 189.33 118 V 338" stroke-width="9" />
+        <path d="M 266.67 118 V 338" stroke-width="9" />
+        <path d="M 118 189.33 H 338" stroke-width="9" />
+        <path d="M 118 266.67 H 338" stroke-width="9" />
+    </g>
+    <!-- 已填数字（以实心方块示意） -->
+    <g fill="#FFFFFF">
+        <rect x="134" y="134" width="32" height="32" rx="7" />
+        <rect x="212" y="212" width="32" height="32" rx="7" />
+        <rect x="290" y="290" width="32" height="32" rx="7" />
+    </g>
+</svg>

@@ -1,0 +1,24 @@
+# 项目本地工具链与缓存（体积大，不入库）
+.toolchain/
+.cache/
+
+# .NET 构建产物
+[Bb]in/
+[Oo]bj/
+*.user
+*.binlog
+
+# 发布/打包产物
+publish/
+artifacts/
+*.apk
+*.aab
+*.keystore
+
+# 本地 Android SDK
+.android-sdk/
+
+# 编辑器
+.vs/
+.vscode/
+.idea/

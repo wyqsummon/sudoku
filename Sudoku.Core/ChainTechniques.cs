@@ -169,6 +169,33 @@ public static class ChainTechniques
             $"因此可以删除：{elimDesc}。",
         };
 
+        // 高亮三段走：①鱼身（基线上的候选数）②覆盖线上同样含该数字的位置 ③结论（可删除的候选数）
+        var marks = new List<HintMark>();
+        var bodyCells = highlights.ToHashSet();
+        foreach (int cell in bodyCells)
+        {
+            marks.Add(new HintMark(cell, digit, HintMarkRole.DigitA, 0));
+        }
+
+        foreach (int cover in coverSet)
+        {
+            int coverUnit = byRow ? SudokuGrid.Size + cover : cover;
+            foreach (int cell in SudokuGrid.AllUnits[coverUnit])
+            {
+                if (bodyCells.Contains(cell) || !cand.Has(cell, digit))
+                {
+                    continue;
+                }
+
+                marks.Add(new HintMark(cell, digit, HintMarkRole.Pattern, 1));
+            }
+        }
+
+        foreach (CandidateRef elimination in eliminations)
+        {
+            marks.Add(new HintMark(elimination.Cell, elimination.Digit, HintMarkRole.Elimination, 3));
+        }
+
         return new TechniqueStep(
             technique,
             highlights.Distinct().OrderBy(c => c).ToArray(),
@@ -177,7 +204,8 @@ public static class ChainTechniques
             eliminations,
             description,
             links,
-            derivation);
+            derivation,
+            HintMarks.Normalize(marks));
     }
 
     // ------------------------------------------------------------------
@@ -301,6 +329,23 @@ public static class ChainTechniques
             $"所以同时能看见这两格的位置都不能填 {z}，删除：{elimDesc}。",
         };
 
+        // 高亮：枢轴的两个候选数用两种颜色（例如绿 6 / 红 5），两翼里与枢轴共享的那个数字同色，
+        // 两翼共有的 z（也正是结论要删的数字）用第三种颜色；结论到第 6 条推导才打叉
+        var marks = new List<HintMark>
+        {
+            new(pivot, x, HintMarkRole.DigitA, 0),
+            new(pivot, y, HintMarkRole.DigitB, 0),
+            new(w1, x, HintMarkRole.DigitA, 1),
+            new(w2, y, HintMarkRole.DigitB, 1),
+            new(w1, z, HintMarkRole.DigitC, 1),
+            new(w2, z, HintMarkRole.DigitC, 1),
+        };
+
+        foreach (CandidateRef elimination in eliminations)
+        {
+            marks.Add(new HintMark(elimination.Cell, elimination.Digit, HintMarkRole.Elimination, 5));
+        }
+
         return new TechniqueStep(
             Technique.XYWing,
             new[] { pivot, w1, w2 },
@@ -309,7 +354,8 @@ public static class ChainTechniques
             eliminations,
             description,
             links,
-            derivation);
+            derivation,
+            HintMarks.Normalize(marks));
     }
 
     // ------------------------------------------------------------------
@@ -330,7 +376,7 @@ public static class ChainTechniques
         public bool Has(int cell, int digit) => (_masks[cell] & SudokuGrid.DigitBit(digit)) != 0;
     }
 
-    private static List<int> CellsWithCandidate(Candidates cand, int unitId, int digit)
+    internal static List<int> CellsWithCandidate(Candidates cand, int unitId, int digit)
     {
         var result = new List<int>(SudokuGrid.Size);
         foreach (int cell in SudokuGrid.AllUnits[unitId])

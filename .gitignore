@@ -1,24 +1,120 @@
-# 项目本地工具链与缓存（体积大，不入库）
+# ============================================================================
+#  数独（.NET MAUI：Android + Windows）—— 版本库忽略规则
+#
+#  开源到 GitHub 时的原则：只提交源码、脚本、文档、图标与字体资源；
+#  下面这些全部不入库——尤其是第 1 节（体积按 GB 计）与第 4 节（签名密钥）。
+# ============================================================================
+
+# ---------------------------------------------------------------------------
+# 1. 本地工具链与缓存（体积巨大，绝对不要提交）
+#    .toolchain/    项目内置的 .NET SDK（scripts\install-toolchain.ps1 装出来的）
+#    .android-sdk/  项目内置的 Android SDK（scripts\build-android.ps1 自动装的，1~2 GB）
+#    .cache/        调试脚本与语料缓存
+# ---------------------------------------------------------------------------
 .toolchain/
+.android-sdk/
 .cache/
 
-# .NET 构建产物
+# ---------------------------------------------------------------------------
+# 2. .NET 构建产物
+# ---------------------------------------------------------------------------
 [Bb]in/
 [Oo]bj/
+[Dd]ebug/
+[Rr]elease/
 *.user
+*.rsuser
+*.suo
+*.userosscache
+*.sln.docstates
+*.userprefs
 *.binlog
+*.tlog
+*.log
+*.tmp
+*.pdb
+*.nupkg
+*.snupkg
+*.cache
+project.lock.json
+project.fragment.lock.json
+.vs/
+*.VisualState.xml
+TestResult.xml
 
-# 发布/打包产物
+# 测试与覆盖率报告
+TestResults/
+[Tt]est[Rr]esult*/
+*.trx
+*.coverage
+*.coveragexml
+coverage*.json
+coverage*.xml
+coverage*.info
+
+# ---------------------------------------------------------------------------
+# 3. 发布 / 打包产物（scripts\publish-windows.ps1 与 build-android.ps1 的产出）
+#    publish\windows\ 226 MB、publish\Sudoku-win-x64.zip 83 MB、APK 28 MB —— 都走 Release 页面分发
+# ---------------------------------------------------------------------------
 publish/
 artifacts/
+AppPackages/
+BundleArtifacts/
+*.appx
+*.appxbundle
+*.appxupload
+*.msix
+*.msixbundle
+*.msixupload
 *.apk
 *.aab
+*.ipa
+
+# ---------------------------------------------------------------------------
+# 4. 签名与密钥（重要：一旦提交就是安全事故，务必确认下面几行没被删掉）
+#    keystore/ 目录本身保留（里面有 README 教别人自己生成密钥），只忽略密钥文件本体
+# ---------------------------------------------------------------------------
 *.keystore
+*.jks
+*.p12
+*.pfx
+*.snk
+*.mobileprovision
+*.cer
 
-# 本地 Android SDK
-.android-sdk/
+# 本机私有的签名口令配置（scripts\build-android.ps1 会自动加载，里面放明文口令）
+scripts/local-signing.ps1
+*.local.ps1
+local-signing.ps1
 
-# 编辑器
-.vs/
+# ---------------------------------------------------------------------------
+# 5. 编辑器 / IDE
+# ---------------------------------------------------------------------------
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
+
+# ---------------------------------------------------------------------------
+# 6. 操作系统杂项
+# ---------------------------------------------------------------------------
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# ---------------------------------------------------------------------------
+# 7. 其它零碎
+# ---------------------------------------------------------------------------
+*.orig
+*.rej
+*.bak
+*.pidb
+*.svd
+*.opendb
+*.VC.db
+mono_crash.*.json

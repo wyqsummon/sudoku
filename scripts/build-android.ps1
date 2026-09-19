@@ -1,9 +1,19 @@
 ﻿# 构建 Android APK（首次会自动安装 Android SDK 依赖到项目内 .android-sdk）
+#
+# 签名口令不写死在脚本里（本仓库是公开的），按下面的优先级取：
+#   1. 命令行参数  -KeyPass / -StorePass / -KeyAlias / -KeystorePath
+#   2. 环境变量    SUDOKU_KEY_PASS / SUDOKU_STORE_PASS / SUDOKU_KEY_ALIAS / SUDOKU_KEYSTORE
+#   3. 本地私有文件 scripts\local-signing.ps1（已被 .gitignore 忽略，里面 set 上面几个环境变量）
+# 一个都没给、但密钥库存在时会明确警告并改为产出未签名 APK（不会静默签错）。
 param(
     [string]$SdkDirectory,
     [switch]$InstallDependencies,
     [switch]$Debug,
-    [switch]$Unsigned
+    [switch]$Unsigned,
+    [string]$KeystorePath,
+    [string]$KeyAlias,
+    [string]$KeyPass,
+    [string]$StorePass
 )
 
 . (Join-Path $PSScriptRoot 'dev-env.ps1')
@@ -57,19 +67,42 @@ if ($InstallDependencies -or -not $sdkReady) {
     }
 }
 
+# ---------------------------------------------------------------------------
+# 签名：口令只从参数 / 环境变量（含本地私有文件）取，绝不写死在脚本里
+# ---------------------------------------------------------------------------
+$localSigning = Join-Path $PSScriptRoot 'local-signing.ps1'
+if (Test-Path $localSigning) {
+    . $localSigning   # 本机私有配置（已在 .gitignore 中），只负责设置环境变量
+}
+
+if (-not $KeystorePath) {
+    $KeystorePath = if ($env:SUDOKU_KEYSTORE) { $env:SUDOKU_KEYSTORE } else { Join-Path $root 'keystore\sudoku.keystore' }
+}
+if (-not $KeyAlias) { $KeyAlias = if ($env:SUDOKU_KEY_ALIAS) { $env:SUDOKU_KEY_ALIAS } else { 'sudoku' } }
+if (-not $KeyPass) { $KeyPass = $env:SUDOKU_KEY_PASS }
+if (-not $StorePass) { $StorePass = if ($env:SUDOKU_STORE_PASS) { $env:SUDOKU_STORE_PASS } else { $KeyPass } }
+
 $signing = @()
-$keystore = Join-Path $root 'keystore\sudoku.keystore'
-if (-not $Unsigned -and (Test-Path $keystore)) {
-    Write-Host '使用 keystore\sudoku.keystore 签名' -ForegroundColor Cyan
+if ($Unsigned) {
+    Write-Host '已指定 -Unsigned：产出未签名 APK' -ForegroundColor Yellow
+} elseif (-not (Test-Path $KeystorePath)) {
+    Write-Host "未找到密钥库：$KeystorePath" -ForegroundColor Yellow
+    Write-Host '  → 产出未签名 / 调试签名 APK（本地安装调试够用）。要签名请看 keystore\README.md' -ForegroundColor DarkGray
+} elseif (-not $KeyPass) {
+    Write-Host '⚠ 找到密钥库，但没有签名口令，无法签名，本次改为产出未签名 APK。' -ForegroundColor Yellow
+    Write-Host '  请任选一种方式提供口令（详见 keystore\README.md）：' -ForegroundColor DarkGray
+    Write-Host '    • 环境变量： $env:SUDOKU_KEY_PASS = ''你的口令''（库口令不同再加 SUDOKU_STORE_PASS）' -ForegroundColor DarkGray
+    Write-Host '    • 本地文件： scripts\local-signing.ps1（已在 .gitignore 中，不会被提交）' -ForegroundColor DarkGray
+    Write-Host '    • 命令行：   .\scripts\build-android.ps1 -KeyPass ''口令'' -StorePass ''库口令''' -ForegroundColor DarkGray
+} else {
+    Write-Host "使用密钥库签名：$KeystorePath（别名 $KeyAlias）" -ForegroundColor Cyan
     $signing = @(
         '-p:AndroidKeyStore=true',
-        "-p:AndroidSigningKeyStore=$keystore",
-        '-p:AndroidSigningKeyAlias=sudoku',
-        '-p:AndroidSigningKeyPass=sudoku2026',
-        '-p:AndroidSigningStorePass=sudoku2026'
+        "-p:AndroidSigningKeyStore=$KeystorePath",
+        "-p:AndroidSigningKeyAlias=$KeyAlias",
+        "-p:AndroidSigningKeyPass=$KeyPass",
+        "-p:AndroidSigningStorePass=$StorePass"
     )
-} else {
-    Write-Host '未找到密钥库，将输出未签名/调试签名 APK' -ForegroundColor Yellow
 }
 
 & dotnet publish $project -f $tfm -c $configuration `

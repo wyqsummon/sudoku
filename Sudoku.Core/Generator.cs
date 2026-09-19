@@ -1,13 +1,19 @@
-namespace Sudoku.Core;
+﻿namespace Sudoku.Core;
 
 /// <summary>一道题目：题面、唯一解与难度信息。</summary>
 public sealed record Puzzle(Board Given, Board Solution, DifficultyLevel Level, int TechniqueLevel, int ClueCount)
 {
+    /// <summary>SE 风格评分（生成时计算；从旧存档恢复的题目为 0）。</summary>
+    public double Score { get; init; }
+
     /// <summary>题面的 SDK 文本表示。</summary>
     public string ToSdkString() => Given.ToSdkString();
 
     /// <summary>空格数量。</summary>
     public int EmptyCount => SudokuGrid.CellCount - ClueCount;
+
+    /// <summary>形如「困难 · 4.2」的难度显示文本。</summary>
+    public string DifficultyText => Score > 0 ? $"{Difficulty.Name(Level)} · {Score:0.0}" : Difficulty.Name(Level);
 }
 
 /// <summary>
@@ -52,33 +58,103 @@ public sealed class Generator
             throw new ArgumentOutOfRangeException(nameof(maxAttempts), maxAttempts, "maxAttempts 必须大于 0。");
         }
 
+        // 十七数是「按提示数个数定义的题型」而不是挖洞深度：随机挖洞挖不到 17 个提示数，
+        // 走内置母题 + 等价变换这条路（见 SeventeenClues）。
+        if (level == DifficultyLevel.Seventeen)
+        {
+            return GenerateSeventeen(maxAttempts);
+        }
+
         Puzzle? best = null;
         int bestDelta = int.MaxValue;
+        bool bestSolved = false;
 
         for (int attempt = 0; attempt < maxAttempts; attempt++)
         {
             Board solution = GenerateSolution();
-            Board given = Dig(solution, MinClues(level));
+            // 大师档改用非对称挖洞 + 多种子重挖：更少的线索才更可能逼出高阶技巧（题面美观相对次要）
+            bool symmetric = _symmetric && level != DifficultyLevel.Master;
+            int restarts = level == DifficultyLevel.Master ? 4 : 1;
+            Board given = Dig(solution, MinClues(level), symmetric, restarts);
             AdjustToLevel(given, solution, level);
 
-            LogicalSolveResult result = LogicalSolver.Solve(given);
-            DifficultyLevel actual = Difficulty.FromSolve(result);
-            var puzzle = new Puzzle(given, solution, actual, result.MaxLevel, given.FilledCount);
+            // 需要逐步评分，因这里必须收集每一步的技巧信息
+            LogicalSolveResult result = LogicalSolver.Solve(given, collectSteps: true);
+            RatingReport rating = DifficultyRating.Rate(result);
+            DifficultyLevel actual = rating.Level;
+            var puzzle = new Puzzle(given, solution, actual, result.MaxLevel, given.FilledCount)
+            {
+                Score = rating.Score,
+            };
 
             int delta = Math.Abs((int)actual - (int)level);
-            if (delta == 0)
+            bool solved = result.Solved;
+
+            // 档位命中且能纯逻辑解出 → 直接采用
+            // （只有纯逻辑可解，分段式提示才有技巧可给；否则提示会「无技巧可用」）
+            if (delta == 0 && solved)
             {
                 return puzzle;
             }
 
-            if (delta < bestDelta)
+            if (delta < bestDelta || (delta == bestDelta && solved && !bestSolved))
             {
                 bestDelta = delta;
+                bestSolved = solved;
                 best = puzzle;
             }
         }
 
         return best ?? throw new InvalidOperationException("题目生成失败。");
+    }
+
+    /// <summary>
+    /// 生成一道「十七数」题目：恰好 17 个提示数、唯一解，且难度不低于大师档。
+    /// 十七数这一档要求「必须用到高阶技巧」（ALS 链 / ALS-XZ / BUG+1 / 唯一矩形 / 带鳍鱼 / 远程数对），
+    /// 内置母题已经按这个口径筛过，这里再兜一层：优先返回用到高阶技巧的派生题面。
+    /// </summary>
+    public Puzzle GenerateSeventeen(int maxAttempts = 40)
+    {
+        if (!SeventeenClues.IsAvailable)
+        {
+            throw new InvalidOperationException("没有可用的 17 提示数母题。");
+        }
+
+        Puzzle? solved = null;
+        Puzzle? fallback = null;
+
+        for (int attempt = 0; attempt < maxAttempts; attempt++)
+        {
+            Board given = SeventeenClues.Create(_random);
+            if (!Solver.TrySolve(given, out Board solution))
+            {
+                continue;
+            }
+
+            LogicalSolveResult result = LogicalSolver.Solve(given, collectSteps: true);
+            RatingReport rating = DifficultyRating.Rate(result);
+            var puzzle = new Puzzle(given, solution, DifficultyLevel.Seventeen, result.MaxLevel, given.FilledCount)
+            {
+                Score = rating.Score,
+            };
+
+            fallback ??= puzzle;
+
+            if (!result.Solved)
+            {
+                continue;
+            }
+
+            // 用到高阶技巧 → 评分不低于大师档，这才是十七数该有的难度
+            if (result.UsesAdvancedTechnique)
+            {
+                return puzzle;
+            }
+
+            solved ??= puzzle;
+        }
+
+        return solved ?? fallback ?? throw new InvalidOperationException("十七数题目生成失败。");
     }
 
     /// <summary>各难度的目标最少已知数，决定挖洞深度。</summary>
@@ -87,6 +163,9 @@ public sealed class Generator
         DifficultyLevel.Easy => 34,
         DifficultyLevel.Medium => 28,
         DifficultyLevel.Hard => 22,
+        DifficultyLevel.Expert => 19,
+        // 大师档要挖到几乎没有冗余线索，才更可能逼出带鳍鱼 / 唯一矩形 / BUG+1 / 远程数对
+        DifficultyLevel.Master => 17,
         _ => 30,
     };
 
@@ -136,59 +215,91 @@ public sealed class Generator
         }
     }
 
-    /// <summary>在保证唯一解的前提下尽可能挖洞。</summary>
-    private Board Dig(Board solution, int minClues)
+    /// <summary>在保证唯一解的前提下尽可能挖洞（同一批格子反复扫，直到扫不动为止）。</summary>
+    private Board Dig(Board solution, int minClues, bool symmetric, int restarts = 1)
     {
-        Board puzzle = solution.Clone();
+        Board best = DigOnce(solution, minClues, symmetric);
+        int bestClues = best.FilledCount;
 
-        var order = new List<int>();
-        int limit = _symmetric ? ((SudokuGrid.CellCount + 1) / 2) : SudokuGrid.CellCount;
-        for (int i = 0; i < limit; i++)
+        // 贪心挖洞会落在局部最优：换几次随机顺序重挖，取挖得最深的那次
+        for (int r = 1; r < restarts && bestClues > minClues; r++)
         {
-            order.Add(i);
+            Board candidate = DigOnce(solution, minClues, symmetric);
+            int clues = candidate.FilledCount;
+            if (clues < bestClues)
+            {
+                best = candidate;
+                bestClues = clues;
+            }
         }
 
-        Shuffle(order);
+        return best;
+    }
 
+    private Board DigOnce(Board solution, int minClues, bool symmetric)
+    {
+        Board puzzle = solution.Clone();
         int clues = puzzle.FilledCount;
-        foreach (int index in order)
+
+        // 单轮贪心挖洞容易早早卡住（剩下的第一次没挖掉的格子往往后面就挖得掉了），
+        // 因此反复重排顺序再扫几轮，直到某一轮一点都挖不动为止。
+        for (int round = 0; round < 6 && clues > minClues; round++)
         {
-            if (clues <= minClues)
+            var order = new List<int>();
+            int limit = symmetric ? ((SudokuGrid.CellCount + 1) / 2) : SudokuGrid.CellCount;
+            for (int i = 0; i < limit; i++)
+            {
+                order.Add(i);
+            }
+
+            Shuffle(order);
+
+            bool removedAny = false;
+            foreach (int index in order)
+            {
+                if (clues <= minClues)
+                {
+                    break;
+                }
+
+                var group = new List<int>(2) { index };
+                if (symmetric)
+                {
+                    int mirror = SudokuGrid.CellCount - 1 - index;
+                    if (mirror != index)
+                    {
+                        group.Add(mirror);
+                    }
+                }
+
+                if (group.Any(c => puzzle[c] == 0))
+                {
+                    continue;
+                }
+
+                var backup = group.Select(c => puzzle[c]).ToArray();
+                foreach (int c in group)
+                {
+                    puzzle[c] = 0;
+                }
+
+                if (Solver.HasUniqueSolution(puzzle))
+                {
+                    clues -= group.Count;
+                    removedAny = true;
+                }
+                else
+                {
+                    for (int k = 0; k < group.Count; k++)
+                    {
+                        puzzle[group[k]] = backup[k];
+                    }
+                }
+            }
+
+            if (!removedAny)
             {
                 break;
-            }
-
-            var group = new List<int>(2) { index };
-            if (_symmetric)
-            {
-                int mirror = SudokuGrid.CellCount - 1 - index;
-                if (mirror != index)
-                {
-                    group.Add(mirror);
-                }
-            }
-
-            if (group.Any(c => puzzle[c] == 0))
-            {
-                continue;
-            }
-
-            var backup = group.Select(c => puzzle[c]).ToArray();
-            foreach (int c in group)
-            {
-                puzzle[c] = 0;
-            }
-
-            if (Solver.HasUniqueSolution(puzzle))
-            {
-                clues -= group.Count;
-            }
-            else
-            {
-                for (int k = 0; k < group.Count; k++)
-                {
-                    puzzle[group[k]] = backup[k];
-                }
             }
         }
 

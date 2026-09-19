@@ -1,4 +1,4 @@
-using Sudoku.App.Game;
+﻿using Sudoku.App.Game;
 using Sudoku.Core;
 
 namespace Sudoku.App.Views;
@@ -24,26 +24,45 @@ public sealed class MainPage : ContentPage
         var easy = Ui.Secondary("简单");
         var medium = Ui.Secondary("中等");
         var hard = Ui.Secondary("困难");
+        var expert = Ui.Secondary("专家");
+        var master = Ui.Secondary("大师");
+        var seventeen = Ui.Secondary("十七数");
         easy.Clicked += async (_, _) => await StartNewGameAsync(DifficultyLevel.Easy);
         medium.Clicked += async (_, _) => await StartNewGameAsync(DifficultyLevel.Medium);
         hard.Clicked += async (_, _) => await StartNewGameAsync(DifficultyLevel.Hard);
+        expert.Clicked += async (_, _) => await StartNewGameAsync(DifficultyLevel.Expert);
+        master.Clicked += async (_, _) => await StartNewGameAsync(DifficultyLevel.Master);
+        seventeen.Clicked += async (_, _) => await StartNewGameAsync(DifficultyLevel.Seventeen);
 
+        // 六个档位分两行三列：上面三个基础档（简单 / 中等 / 困难），下面三个高难档（专家 / 大师 / 十七数）
         var difficultyRow = new Grid
         {
-            ColumnSpacing = 8,
-            ColumnDefinitions =
-            {
-                new ColumnDefinition(GridLength.Star),
-                new ColumnDefinition(GridLength.Star),
-                new ColumnDefinition(GridLength.Star),
-            },
+            ColumnSpacing = 6,
+            RowSpacing = 6,
         };
+        for (int i = 0; i < 3; i++)
+        {
+            difficultyRow.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
+        }
+
+        difficultyRow.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+        difficultyRow.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+
         difficultyRow.Add(easy, 0, 0);
         difficultyRow.Add(medium, 1, 0);
         difficultyRow.Add(hard, 2, 0);
+        difficultyRow.Add(expert, 0, 1);
+        difficultyRow.Add(master, 1, 1);
+        difficultyRow.Add(seventeen, 2, 1);
 
         var settingsButton = Ui.Tool("设置");
         settingsButton.Clicked += async (_, _) => await Navigation.PushAsync(new SettingsPage());
+
+        Button tutorialButton = Ui.Secondary("技巧教程与专项练习");
+        tutorialButton.Clicked += async (_, _) => await Navigation.PushAsync(new TutorialPage());
+
+        Button importButton = Ui.Secondary("导入 SDK 盘面");
+        importButton.Clicked += async (_, _) => await Navigation.PushAsync(new SdkPage());
 
         _statusLabel = Ui.Body(string.Empty, 13, TextAlignment.Center);
 
@@ -71,7 +90,27 @@ public sealed class MainPage : ContentPage
                     {
                         Ui.SectionHeader("新游戏"),
                         difficultyRow,
-                        Ui.Body("简单：只需唯一候选数即可完成\n中等：需要区块摒除与数对\n困难：需要三数组或更高级技巧", 13),
+                        Ui.Body(string.Join('\n', Difficulty.All.Select(l => $"{Difficulty.Name(l)}：{Difficulty.Description(l)}")), 13),
+                    },
+                }),
+                Ui.Card(new VerticalStackLayout
+                {
+                    Spacing = 10,
+                    Children =
+                    {
+                        Ui.SectionHeader("学习 / 专项练习"),
+                        tutorialButton,
+                        Ui.Body("按「基础 / 进阶 / 高阶」列出全部技巧：原理、怎么找、怎么做，外加一道真实例题。「专项练习」会把盘面直接停在只剩这一招的卡点上，让你在实战位置练这一招；练废了也不影响「继续上一局」的存档。", 13),
+                    },
+                }),
+                Ui.Card(new VerticalStackLayout
+                {
+                    Spacing = 10,
+                    Children =
+                    {
+                        Ui.SectionHeader("题库 / 导入"),
+                        importButton,
+                        Ui.Body("支持 SDK 文本（81 个字符，. 或 0 表示空格）与 Hodoku 的 .sdk 写法：多行题库、# 注释行、带宫线的可读排版都能直接粘贴。导入时自动校验合法性、唯一解并给出评分。", 13),
                     },
                 }),
                 settingsButton,
@@ -118,7 +157,8 @@ public sealed class MainPage : ContentPage
         }
 
         string progress = $"{81 - snapshot.Values.Count(v => v == 0)}/81";
-        _statusLabel.Text = $"上一局：{Difficulty.Name(snapshot.Level)} · 已填 {progress} · 用时 {TimeSpan.FromSeconds(snapshot.ElapsedSeconds):mm\\:ss}";
+        string rating = snapshot.DifficultyScore > 0 ? $" · 评分 {snapshot.DifficultyScore:0.0}" : string.Empty;
+        _statusLabel.Text = $"上一局：{Difficulty.Name(snapshot.Level)}{rating} · 已填 {progress} · 用时 {TimeSpan.FromSeconds(snapshot.ElapsedSeconds):mm\\:ss}";
     }
 
     private async Task ContinueAsync()
@@ -150,11 +190,18 @@ public sealed class MainPage : ContentPage
         }
 
         _busy = true;
-        SetBusy(true, $"正在生成{Difficulty.Name(level)}题目…");
+        // 大师档要求「必须用到高阶技巧」，出题要反复挖洞+试解，所以给它更大的重试预算。
+        // 十七数走内置母题（已按「必须用高阶技巧」筛过）+ 等价变换，代价很低，不需要放大预算。
+        int attempts = level == DifficultyLevel.Master ? 200 : 40;
+        SetBusy(true, level == DifficultyLevel.Master
+            ? "正在生成大师题目…（这一档更慢，最多几秒）"
+            : level == DifficultyLevel.Seventeen
+                ? "正在生成十七数题目…（要用到 ALS / BUG+1 等高阶技巧）"
+                : $"正在生成{Difficulty.Name(level)}题目…");
 
         try
         {
-            Puzzle puzzle = await Task.Run(() => new Generator().Generate(level));
+            Puzzle puzzle = await Task.Run(() => new Generator().Generate(level, attempts));
             GameSession session = GameSession.New(puzzle, AppState.Settings);
             AppState.Session = session;
             GameStorage.Save(session.ToSnapshot());

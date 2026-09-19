@@ -115,6 +115,50 @@ internal static class Ui
         return button;
     }
 
+    /// <summary>开关类工具按钮「激活」时的底色与字色（浅色 / 深色主题）。</summary>
+    public static readonly Color LightToolActive = Color.FromArgb("#BFD9F5");
+    public static readonly Color DarkToolActive = Color.FromArgb("#2E5480");
+    public static readonly Color LightToolActiveText = Color.FromArgb("#0B3D75");
+    public static readonly Color DarkToolActiveText = Color.FromArgb("#FFFFFF");
+
+    /// <summary>
+    /// 把开关类工具按钮切成「激活 / 未激活」两种外观：激活时整块高亮反白，
+    /// 不再在文字后面追加「✓」。
+    /// </summary>
+    public static void SetToolActive(Button button, bool active)
+    {
+        ArgumentNullException.ThrowIfNull(button);
+
+        if (active)
+        {
+            button.SetAppThemeColor(Button.BackgroundColorProperty, LightToolActive, DarkToolActive);
+            button.SetAppThemeColor(Button.TextColorProperty, LightToolActiveText, DarkToolActiveText);
+            button.FontAttributes = FontAttributes.Bold;
+        }
+        else
+        {
+            button.SetAppThemeColor(Button.BackgroundColorProperty, LightSurface, DarkSurface);
+            button.SetAppThemeColor(Button.TextColorProperty, LightText, DarkText);
+            button.FontAttributes = FontAttributes.None;
+        }
+    }
+
+    /// <summary>选中的色块用描边高亮（色块本身已填了颜色，改底色看不出来）。</summary>
+    public static void SetSwatchSelected(Button swatch, bool selected)
+    {
+        ArgumentNullException.ThrowIfNull(swatch);
+
+        if (selected)
+        {
+            swatch.SetAppThemeColor(Button.BorderColorProperty, LightText, Colors.White);
+            swatch.BorderWidth = 3;
+        }
+        else
+        {
+            swatch.BorderWidth = 0;
+        }
+    }
+
     /// <summary>卡片容器。</summary>
     public static Border Card(View content, double padding = 16)
     {

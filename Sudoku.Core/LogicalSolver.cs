@@ -20,6 +20,19 @@ public enum Technique
     XChain = 12,
     XYChain = 13,
     Aic = 14,
+
+    // ===== 阶段四：高阶技巧 =====
+    RemotePair = 15,
+    UniqueRectangle = 16,
+    FinnedXWing = 17,
+    FinnedSwordfish = 18,
+    BugPlusOne = 19,
+
+    // ===== 阶段九：集合类与环类高阶技巧 =====
+    AlsXz = 20,
+    SueDeCoq = 21,
+    AlsChain = 22,
+    ContinuousLoop = 23,
 }
 
 /// <summary>技巧的难度等级与中文名。</summary>
@@ -35,10 +48,14 @@ public static class TechniqueInfo
         Technique.NakedPair or Technique.HiddenPair => 4,
         Technique.NakedTriple or Technique.HiddenTriple => 5,
         Technique.XWing or Technique.Swordfish or Technique.XYWing => 6,
-        Technique.XChain => 7,
-        Technique.XYChain => 8,
-        Technique.Aic => 9,
-        _ => 9,
+        Technique.XChain or Technique.RemotePair => 7,
+        Technique.XYChain or Technique.UniqueRectangle or Technique.FinnedXWing => 8,
+        Technique.Aic or Technique.FinnedSwordfish => 9,
+        Technique.BugPlusOne => 10,
+        Technique.AlsXz => 11,
+        Technique.SueDeCoq => 12,
+        Technique.AlsChain or Technique.ContinuousLoop => 13,
+        _ => 13,
     };
 
     /// <summary>技巧中文名。</summary>
@@ -59,22 +76,49 @@ public static class TechniqueInfo
         Technique.XChain => "X 链（单数字链）",
         Technique.XYChain => "XY 链（双值格链）",
         Technique.Aic => "交替推导链（AIC）",
+        Technique.RemotePair => "远程数对",
+        Technique.UniqueRectangle => "唯一矩形",
+        Technique.FinnedXWing => "带鳍 X 翼",
+        Technique.FinnedSwordfish => "带鳍剑鱼",
+        Technique.BugPlusOne => "BUG+1（双值通用坟墓）",
+        Technique.AlsXz => "ALS-XZ（准锁定集）",
+        Technique.SueDeCoq => "Sue de Coq（双翼锁定集）",
+        Technique.AlsChain => "ALS 链（ALS-XY-Wing 等）",
+        Technique.ContinuousLoop => "连续环（Continuous Nice Loop）",
         _ => technique.ToString(),
     };
 
     /// <summary>是否为链级技巧（会在棋盘上画出强弱链）。</summary>
     public static bool IsChain(Technique technique) =>
-        technique is Technique.XChain or Technique.XYChain or Technique.Aic;
+        technique is Technique.XChain or Technique.XYChain or Technique.Aic or Technique.RemotePair
+            or Technique.ContinuousLoop;
 
     /// <summary>一句话技巧说明（用于提示面板的标题下方）。</summary>
     public static string Summary(Technique technique) => technique switch
     {
+        Technique.NakedSingle => "某格只剩一个候选数，直接填入。",
+        Technique.HiddenSingle => "某数字在一个行/列/宫内只剩一格能放，直接填入。",
+        Technique.LockedCandidatesPointing => "某数字在一个宫内只出现在同一行（列），该行（列）的其他格就不能再放它。",
+        Technique.LockedCandidatesClaiming => "某数字在一行（列）内只出现在同一宫，该宫的其他格就不能再放它。",
+        Technique.NakedPair => "同单元内两格的候选数恰好是同样的两个数字，可删除该单元其他格的这两个数字。",
+        Technique.HiddenPair => "同单元内两个数字只出现在同样的两格，这两格就只保留这两个数字。",
+        Technique.NakedTriple => "同单元内三格的候选数只由三个数字组成，可删除该单元其他格的这三个数字。",
+        Technique.HiddenTriple => "同单元内三个数字只出现在同样的三格，这三格就只保留这三个数字。",
         Technique.XWing => "某数字在两行中只出现在相同的两列，则可从这两列的其他格删除该数字。",
         Technique.Swordfish => "某数字在三行中只出现在相同的三列，则可从这三列的其他格删除该数字。",
         Technique.XYWing => "以双值格为枢纽，两个翼格共享第三个数字，可删除同时看见两翼的该数字。",
         Technique.XChain => "同一数字的强链与弱链交替成链，链两端的共同可见格可删除该数字。",
         Technique.XYChain => "以双值格串联成链，起点与终点共同可见的格可删除相关数字。",
         Technique.Aic => "候选数之间强弱交替推断，链两端共同可见的候选数可删除。",
+        Technique.RemotePair => "一串只含同样两个数字的双值格用共轭对串起来，两端一个填 a、一个填 b，共同可见处不能填这两个数字。",
+        Technique.UniqueRectangle => "四格在两行两列两宫内都只能填同样两个数字会形成两个解，据此删除多余候选数。",
+        Technique.FinnedXWing => "X 翼的形状多出几个「鳍格」（同一宫内），覆盖列上能看见鳍格的位置可删除该数字。",
+        Technique.FinnedSwordfish => "剑鱼的形状多出几个「鳍格」（同一宫内），覆盖行上能看见鳍格的位置可删除该数字。",
+        Technique.BugPlusOne => "除一格以外全是双值格且每个数字在单元内恰好出现两次时，那一格里出现三次的候选数就是答案。",
+        Technique.AlsXz => "两个「只差一个候选数就填满」的格组（ALS）之间若存在受限公共候选数，则它们的另一个公共候选数至少出现在其中一组里，可据此删除。",
+        Technique.SueDeCoq => "行/列与宫交叉处，两侧各取几格合起来格数与候选数一样多时，只在宫侧出现的候选数只能落在宫侧那几格，只在线侧出现的只能落在线侧那几格。",
+        Technique.AlsChain => "把多个 ALS 用受限公共候选数串成链，链首链尾共同含有的候选数必出现在其一，可据此删除。",
+        Technique.ContinuousLoop => "强弱链交替成环且每个候选数正好一强一弱时，环上候选数按交替的两组取真/假，可删掉单元里的同类候选数与双值格的多余候选数。",
         _ => string.Empty,
     };
 }
@@ -108,7 +152,8 @@ public sealed record TechniqueStep(
     IReadOnlyList<CandidateRef> Eliminations,
     string Description,
     IReadOnlyList<TechniqueLink>? Links = null,
-    IReadOnlyList<string>? Derivation = null)
+    IReadOnlyList<string>? Derivation = null,
+    IReadOnlyList<HintMark>? Marks = null)
 {
     /// <summary>本步技巧的难度等级。</summary>
     public int Level => TechniqueInfo.Level(Technique);
@@ -121,6 +166,19 @@ public sealed record TechniqueStep(
 
     /// <summary>分段式提示用的逐条推导说明（可能为空）。</summary>
     public IReadOnlyList<string> DerivationSteps => Derivation ?? Array.Empty<string>();
+
+    /// <summary>技巧自己给出的棋盘高亮标记（可能为空，界面会兜底推导）。</summary>
+    public IReadOnlyList<HintMark> MarkList => Marks ?? Array.Empty<HintMark>();
+
+    /// <summary>该步骤真正要画的全部标记：技巧给了就用，没给就按结构 + 结论兜底推导。</summary>
+    public IReadOnlyList<HintMark> VisualMarks =>
+        Marks is { Count: > 0 } ? Marks : HintMarks.Synthesize(this);
+
+    /// <summary>按推导进度（0 基）取应当显示的标记；传负数表示全部显示。</summary>
+    public IReadOnlyList<HintMark> MarksAt(int stage) => HintMarks.UpTo(VisualMarks, stage);
+
+    /// <summary>最后一个标记出现的推导进度。</summary>
+    public int LastMarkStage => HintMarks.LastStage(VisualMarks);
 }
 
 /// <summary>逻辑求解结果。</summary>
@@ -130,7 +188,8 @@ public sealed record LogicalSolveResult(
     IReadOnlyList<TechniqueStep> Steps,
     Technique MaxTechnique,
     int MaxLevel,
-    Board Result)
+    Board Result,
+    bool UsesAdvancedTechnique = false)
 {
     /// <summary>本次求解用到的最高难度技巧的中文名。</summary>
     public string MaxTechniqueName => TechniqueInfo.Name(MaxTechnique);
@@ -156,24 +215,30 @@ public static class LogicalSolver
         var steps = new List<TechniqueStep>();
         var maxTechnique = Technique.None;
         int maxLevelUsed = 0;
+        bool usesAdvanced = false;
 
         while (!state.IsComplete)
         {
             if (state.HasContradiction)
             {
-                return new LogicalSolveResult(false, true, steps, maxTechnique, maxLevelUsed, state.ToBoard());
+                return new LogicalSolveResult(false, true, steps, maxTechnique, maxLevelUsed, state.ToBoard(), usesAdvanced);
             }
 
             TechniqueStep? step = FindStep(state, maxLevel);
             if (step is null)
             {
-                return new LogicalSolveResult(false, true, steps, maxTechnique, maxLevelUsed, state.ToBoard());
+                return new LogicalSolveResult(false, true, steps, maxTechnique, maxLevelUsed, state.ToBoard(), usesAdvanced);
             }
 
             state.Apply(step);
             if (collectSteps)
             {
                 steps.Add(step);
+            }
+
+            if (Difficulty.IsAdvancedTechnique(step.Technique))
+            {
+                usesAdvanced = true;
             }
 
             if (step.Level > maxLevelUsed)
@@ -183,25 +248,36 @@ public static class LogicalSolver
             }
         }
 
-        return new LogicalSolveResult(true, false, steps, maxTechnique, maxLevelUsed, state.ToBoard());
+        return new LogicalSolveResult(true, false, steps, maxTechnique, maxLevelUsed, state.ToBoard(), usesAdvanced);
     }
 
     /// <summary>找出当前盘面可用的一步（按难度从低到高，返回第一个可用技巧）。</summary>
-    public static TechniqueStep? FindStep(Board board, int maxLevel = int.MaxValue)
+    public static TechniqueStep? FindStep(Board board, int maxLevel = int.MaxValue, int[]? candidateOverride = null)
     {
         ArgumentNullException.ThrowIfNull(board);
-        return FindStep(new State(board), maxLevel);
+        return FindStep(new State(board, candidateOverride), maxLevel);
     }
 
     /// <summary>列出当前盘面所有可用的技巧步骤（同一步棋可能被多个技巧命中，各自独立列出）。</summary>
-    public static IReadOnlyList<TechniqueStep> FindAllSteps(Board board, int maxLevel = int.MaxValue)
+    public static IReadOnlyList<TechniqueStep> FindAllSteps(
+        Board board,
+        int maxLevel = int.MaxValue,
+        int[]? candidateOverride = null)
     {
         ArgumentNullException.ThrowIfNull(board);
-        var state = new State(board);
+        var state = new State(board, candidateOverride);
         var results = new List<TechniqueStep>();
 
-        AddIfNotNull(results, FindNakedSingle(state));
-        AddAll(results, FindHiddenSingles(state));
+        if (maxLevel >= 1)
+        {
+            AddIfNotNull(results, FindNakedSingle(state));
+        }
+
+        if (maxLevel >= 2)
+        {
+            AddAll(results, FindHiddenSingles(state));
+        }
+
         if (maxLevel >= 3)
         {
             AddAll(results, FindLockedCandidates(state));
@@ -227,6 +303,47 @@ public static class LogicalSolver
             AddAll(results, ChainTechniques.FindXYWings(masks));
         }
 
+        if (maxLevel >= 7)
+        {
+            int[] masks = state.SnapshotCandidates();
+            AddAll(results, ChainSearch.FindXChains(masks));
+            AddAll(results, RemotePair.FindRemotePairs(masks));
+
+            if (maxLevel >= 8)
+            {
+                AddAll(results, ChainSearch.FindXYChains(masks));
+                AddAll(results, UniqueRectangle.FindUniqueRectangles(masks));
+                AddAll(results, FinnedFish.FindFinnedFish(masks, 2));
+            }
+
+            if (maxLevel >= 9)
+            {
+                AddAll(results, ChainSearch.FindAics(masks));
+                AddAll(results, FinnedFish.FindFinnedFish(masks, 3));
+            }
+
+            if (maxLevel >= 10)
+            {
+                AddAll(results, BugPlusOne.FindBugPlusOne(masks));
+            }
+
+            if (maxLevel >= 11)
+            {
+                AddAll(results, AlsTechniques.FindAlsXz(masks));
+            }
+
+            if (maxLevel >= 12)
+            {
+                AddAll(results, SueDeCoq.FindSueDeCoq(masks));
+            }
+
+            if (maxLevel >= 13)
+            {
+                AddAll(results, AlsTechniques.FindAlsChains(masks));
+                AddAll(results, ContinuousLoop.FindContinuousLoops(masks));
+            }
+        }
+
         return results;
     }
 
@@ -242,7 +359,18 @@ public static class LogicalSolver
 
     private static TechniqueStep? FindStep(State state, int maxLevel)
     {
-        TechniqueStep? step = FindNakedSingle(state) ?? FindHiddenSingle(state);
+        TechniqueStep? step = null;
+
+        if (maxLevel >= 1)
+        {
+            step = FindNakedSingle(state);
+        }
+
+        if (step is null && maxLevel >= 2)
+        {
+            step = FindHiddenSingle(state);
+        }
+
         if (step is not null)
         {
             return step;
@@ -281,6 +409,51 @@ public static class LogicalSolver
             step = ChainTechniques.FindXWings(masks).FirstOrDefault()
                 ?? ChainTechniques.FindSwordfishes(masks).FirstOrDefault()
                 ?? ChainTechniques.FindXYWings(masks).FirstOrDefault();
+
+            if (step is not null)
+            {
+                return step;
+            }
+        }
+
+        if (maxLevel >= 7)
+        {
+            int[] masks = state.SnapshotCandidates();
+            step = ChainSearch.FindFirstChain(masks, maxLevel)
+                ?? RemotePair.FindRemotePairs(masks).FirstOrDefault();
+
+            if (step is null && maxLevel >= 8)
+            {
+                step = UniqueRectangle.FindUniqueRectangles(masks).FirstOrDefault()
+                    ?? FinnedFish.FindFinnedFish(masks, 2).FirstOrDefault();
+            }
+
+            if (step is null && maxLevel >= 9)
+            {
+                step = FinnedFish.FindFinnedFish(masks, 3).FirstOrDefault();
+            }
+
+            if (step is null && maxLevel >= 10)
+            {
+                step = BugPlusOne.FindBugPlusOne(masks).FirstOrDefault();
+            }
+
+            // ===== 阶段九：集合类与环类技巧（更高一档，只有确实需要时才用）=====
+            if (step is null && maxLevel >= 11)
+            {
+                step = AlsTechniques.FindAlsXz(masks).FirstOrDefault();
+            }
+
+            if (step is null && maxLevel >= 12)
+            {
+                step = SueDeCoq.FindSueDeCoq(masks).FirstOrDefault();
+            }
+
+            if (step is null && maxLevel >= 13)
+            {
+                step = AlsTechniques.FindAlsChains(masks).FirstOrDefault()
+                    ?? ContinuousLoop.FindContinuousLoops(masks).FirstOrDefault();
+            }
         }
 
         return step;
@@ -638,13 +811,23 @@ public static class LogicalSolver
         private readonly int[] _cells;
         private readonly int[] _candidates;
 
-        public State(Board board)
+        public State(Board board, int[]? candidateOverride = null)
         {
             _cells = board.ToArray();
             _candidates = new int[SudokuGrid.CellCount];
             for (int i = 0; i < SudokuGrid.CellCount; i++)
             {
                 _candidates[i] = board.CandidateMask(i);
+            }
+
+            if (candidateOverride is not null)
+            {
+                // 只做「交」：允许调用方把候选数删得更少（例如玩家自己删掉的），
+                // 但绝不会凭空引入规则上不成立的候选数。
+                for (int i = 0; i < SudokuGrid.CellCount; i++)
+                {
+                    _candidates[i] &= candidateOverride[i];
+                }
             }
         }
 

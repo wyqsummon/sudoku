@@ -15,6 +15,24 @@ public sealed record GameSnapshot
 
     public required int TechniqueLevel { get; init; }
 
+    /// <summary>SE 风格难度评分（阶段二新增；旧存档为 0）。</summary>
+    public double DifficultyScore { get; init; }
+
+    /// <summary>格子涂色（阶段三新增）：cell:color;…。</summary>
+    public string CellColors { get; init; } = string.Empty;
+
+    /// <summary>自动标记开关状态。</summary>
+    public bool AutoMark { get; init; }
+
+    /// <summary>锁定的数字（0 = 未锁定）。</summary>
+    public int LockedDigit { get; init; }
+
+    /// <summary>数字锁定模式是否开启。</summary>
+    public bool LockMode { get; init; }
+
+    /// <summary>绘制颜色编号。</summary>
+    public int DrawColorIndex { get; init; } = 1;
+
     public required int[] Values { get; init; }
 
     public required int[] Notes { get; init; }
@@ -26,6 +44,9 @@ public sealed record GameSnapshot
     public int HintsUsed { get; init; }
 
     public int HintCell { get; init; } = -1;
+
+    /// <summary>用户手绘的强弱链标记（<see cref="LinkDrawing.Serialize"/> 的紧凑文本）。</summary>
+    public string Links { get; init; } = string.Empty;
 
     public bool IsCompleted { get; init; }
 

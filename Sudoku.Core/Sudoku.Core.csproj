@@ -11,4 +11,9 @@
     <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
 
+  <ItemGroup>
+    <!-- 允许测试项目直接构造候选数图，对链级搜索做确定性的单元测试 -->
+    <InternalsVisibleTo Include="Sudoku.Core.Tests" />
+  </ItemGroup>
+
 </Project>

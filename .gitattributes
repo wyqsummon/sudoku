@@ -1,2 +1,30 @@
-# Auto detect text files and perform LF normalization
+# 默认自动识别文本文件：仓库内统一存 LF，检出时再按平台转换
 * text=auto
+
+# 二进制文件：不做行尾转换，也不做文本 diff（图标、字体、密钥、压缩包）
+*.ttf     binary
+*.otf     binary
+*.woff    binary
+*.woff2   binary
+*.png     binary
+*.jpg     binary
+*.jpeg    binary
+*.gif     binary
+*.ico     binary
+*.webp    binary
+*.zip     binary
+*.apk     binary
+*.aab     binary
+*.keystore binary
+*.jks     binary
+*.pfx     binary
+*.p12     binary
+
+# 中文源码与脚本按 UTF-8 处理。
+# 注意：Windows PowerShell 5.1 读带中文的 .ps1 需要 UTF-8 BOM，git 不会改动文件开头的 BOM，
+# 只做行尾转换，所以这里不需要额外设置。
+*.cs      text
+*.csproj  text
+*.slnx    text
+*.ps1     text
+*.md      text

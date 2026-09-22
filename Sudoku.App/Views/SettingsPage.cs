@@ -95,6 +95,7 @@ public sealed class SettingsPage : ContentPage
                         Ui.SettingRow("高阶提示", "开启后列出可用技巧（含带鳍鱼、唯一矩形、BUG+1 等）并逐步讲解推导；关闭只用最简单的提示：直接告诉你某格该填什么", Toggle(settings.AdvancedHints, v => AppState.UpdateSettings(s => s.AdvancedHints = v))),
                         Ui.SettingRow("应用后清除提示绘制", "点「应用这一步」之后，自动擦掉棋盘上为提示画的箭头、链与删除标记", Toggle(settings.ClearHintDrawingOnApply, v => AppState.UpdateSettings(s => s.ClearHintDrawingOnApply = v))),
                         Ui.SettingRow("显示手绘链", "显示你在候选数之间画的强链（实线）与弱链（虚线）", Toggle(settings.ShowLinks, v => AppState.UpdateSettings(s => s.ShowLinks = v))),
+                        Ui.SettingRow("画链用弧线", "把链画成略带弧度的曲线，绕开直线路径上的候选数（同一格内的短链仍画直线）；关掉则一律画直线", Toggle(settings.CurvedLinks, v => AppState.UpdateSettings(s => s.CurvedLinks = v))),
                         Ui.SettingRow("提示技法上限", "高阶技巧较慢，可限制提示最多用到哪一档（11 起含 ALS-XZ、Sue de Coq、连续环）", hintCapPicker),
                     },
                 }),

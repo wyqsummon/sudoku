@@ -1252,6 +1252,12 @@ public sealed class GameSession : INotifyPropertyChanged
     /// <summary>该格是否为填错的数字（与答案不符）。</summary>
     public bool IsWrongEntry(int cell) => Values[cell] != 0 && !IsGiven[cell] && Values[cell] != Puzzle.Solution[cell];
 
+    /// <summary>
+    /// 该格是否已经是正确数字（题目给出的提示数，或玩家自己填对的）。
+    /// 数字锁定模式下点这样的格子会被直接忽略——否则会把锁定的数字覆盖上去，白白记一次错误。
+    /// </summary>
+    public bool IsCorrectlyFilled(int cell) => Values[cell] != 0 && Values[cell] == Puzzle.Solution[cell];
+
     /// <summary>该格是否与同行/列/宫已有数字冲突。</summary>
     public bool HasConflict(int cell)
     {

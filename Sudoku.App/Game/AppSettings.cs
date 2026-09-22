@@ -1,4 +1,4 @@
-using Sudoku.Core;
+﻿using Sudoku.Core;
 
 namespace Sudoku.App.Game;
 
@@ -16,6 +16,7 @@ public sealed class AppSettings
     private const string AdvancedHintsKey = "settings.advanced_hints";
     private const string ClearHintDrawingKey = "settings.clear_hint_drawing_on_apply";
     private const string ShowLinksKey = "settings.show_links";
+    private const string CurvedLinksKey = "settings.curved_links";
     private const string HintLevelCapKey = "settings.hint_level_cap";
     private const string HideCompletedDigitsKey = "settings.hide_completed_digits";
     private const string HighlightDigitButtonsKey = "settings.highlight_digit_buttons";
@@ -57,6 +58,12 @@ public sealed class AppSettings
 
     /// <summary>是否在棋盘上显示手绘的强弱链。</summary>
     public bool ShowLinks { get; set; } = true;
+
+    /// <summary>
+    /// 画链是否用带弧度的曲线：直线横跨几格时会从沿途格子里的候选数上压过去，
+    /// 弧线绕开路径上的候选数（同一格内的短链仍然画直线）。
+    /// </summary>
+    public bool CurvedLinks { get; set; } = true;
 
     /// <summary>提示可用的最高技法等级（6~13，13 表示含连续环 / ALS 链）。</summary>
     public int HintLevelCap { get; set; } = 10;
@@ -108,6 +115,7 @@ public sealed class AppSettings
             AdvancedHints = Preferences.Default.Get(AdvancedHintsKey, false),
             ClearHintDrawingOnApply = Preferences.Default.Get(ClearHintDrawingKey, true),
             ShowLinks = Preferences.Default.Get(ShowLinksKey, true),
+            CurvedLinks = Preferences.Default.Get(CurvedLinksKey, true),
             HintLevelCap = Preferences.Default.Get(HintLevelCapKey, 10),
             HideCompletedDigits = Preferences.Default.Get(HideCompletedDigitsKey, true),
             HighlightDigitButtons = Preferences.Default.Get(HighlightDigitButtonsKey, true),
@@ -132,6 +140,7 @@ public sealed class AppSettings
         Preferences.Default.Set(AdvancedHintsKey, AdvancedHints);
         Preferences.Default.Set(ClearHintDrawingKey, ClearHintDrawingOnApply);
         Preferences.Default.Set(ShowLinksKey, ShowLinks);
+        Preferences.Default.Set(CurvedLinksKey, CurvedLinks);
         Preferences.Default.Set(HintLevelCapKey, HintLevelCap);
         Preferences.Default.Set(HideCompletedDigitsKey, HideCompletedDigits);
         Preferences.Default.Set(HighlightDigitButtonsKey, HighlightDigitButtons);

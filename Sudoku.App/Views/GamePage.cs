@@ -451,11 +451,18 @@ public sealed class GamePage : ContentPage
             return;
         }
 
-        _session.Select(cell);
-
         // 数字锁定模式：点格子就是把锁定的数字填进这一格
         if (_session.LockMode)
         {
+            // 已经是正确数字的格子（题目提示数或自己填对的）完全不作响应：
+            // 既不改数字也不记错误，连选中高亮都不给，免得看着像点了没用的东西
+            if (_session.IsCorrectlyFilled(cell))
+            {
+                return;
+            }
+
+            _session.Select(cell);
+
             if (_session.LockedDigit != 0)
             {
                 FillDigit(_session.LockedDigit);
@@ -468,6 +475,7 @@ public sealed class GamePage : ContentPage
             return;
         }
 
+        _session.Select(cell);
         RefreshDigitButtons();
     }
 
@@ -833,7 +841,7 @@ public sealed class GamePage : ContentPage
         SaveGame();
 
         SetStatus(on
-            ? "数字锁定已开启：点下方数字即锁定该数字（它的位置与候选数会一起高亮），再点格子即可填入。"
+            ? "数字锁定已开启：点下方数字即锁定该数字（它的位置与候选数会一起高亮），再点格子即可填入；已经是正确数字的格子点了不会有反应。"
             : "数字锁定已关闭：点格子会按该格候选数高亮下方对应的数字键。");
     }
 

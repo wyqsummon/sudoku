@@ -1,4 +1,4 @@
-using Sudoku.App.Game;
+﻿using Sudoku.App.Game;
 using Sudoku.Core;
 
 namespace Sudoku.App.Drawing;
@@ -545,7 +545,7 @@ public sealed class BoardDrawable : IDrawable
 
         foreach (UserLink link in session.Drawing.Links)
         {
-            DrawLink(canvas, palette, link);
+            DrawLink(canvas, palette, session, link);
         }
 
         // 画链过程中，用空心圆标出已选定的起点
@@ -558,8 +558,14 @@ public sealed class BoardDrawable : IDrawable
         }
     }
 
-    private void DrawLink(ICanvas canvas, Palette palette, UserLink link) =>
-        DrawArrowLink(canvas, palette.LinkColor(link.ColorIndex, link.IsStrong), link.IsStrong, link.From, link.To);
+    private void DrawLink(ICanvas canvas, Palette palette, GameSession session, UserLink link) =>
+        DrawArrowLink(
+            canvas,
+            palette.LinkColor(link.ColorIndex, link.IsStrong),
+            link.IsStrong,
+            link.From,
+            link.To,
+            session.Settings.CurvedLinks);
 
     /// <summary>把提示里的一条链画到候选数之间：强链实线、弱链虚线，箭头指向推导方向。</summary>
     private void DrawTechniqueLink(ICanvas canvas, Palette palette, TechniqueLink link) =>
@@ -568,13 +574,17 @@ public sealed class BoardDrawable : IDrawable
             link.IsStrong ? palette.LinkStrong : palette.LinkWeak,
             link.IsStrong,
             link.From,
-            link.To);
+            link.To,
+            curved: false);
 
     /// <summary>
     /// 在候选数之间画一条带箭头的线：实线表强链、虚线表弱链。
     /// 线条保持细，免得挡住沿途格子里的候选数（玩家要对照链上的候选数）。
+    /// <paramref name="curved"/> 为真时把线画成一条略带弧度的曲线，绕开直线路径上的候选数
+    /// （设置里「画链用弧线」控制，默认开）；同格内两个候选数距离太近时仍画直线。
     /// </summary>
-    private void DrawArrowLink(ICanvas canvas, Color color, bool isStrong, CandidateRef from, CandidateRef to)
+    private void DrawArrowLink(
+        ICanvas canvas, Color color, bool isStrong, CandidateRef from, CandidateRef to, bool curved)
     {
         PointF a = CandidateCenter(from.Cell, from.Digit);
         PointF b = CandidateCenter(to.Cell, to.Digit);
@@ -595,7 +605,12 @@ public sealed class BoardDrawable : IDrawable
 
         // 线段在箭头前收住，避免箭头把线头穿出去
         float stop = Math.Max(0f, length - (head * 0.8f));
-        PointF lineEnd = new(a.X + (ux * stop), a.Y + (uy * stop));
+
+        // 弧线的控制点：中点朝行进方向垂直偏移一点（bow = 0 时就是直线）
+        float bow = curved && LinkCurve.ShouldCurve(length, CellSize)
+            ? LinkCurve.BowFor(length, CellSize)
+            : 0f;
+        (float cx, float cy) = LinkCurve.ControlPoint(a.X, a.Y, b.X, b.Y, bow);
 
         canvas.StrokeColor = color;
         canvas.StrokeSize = Math.Max(1.3f, CellSize * (isStrong ? 0.032f : 0.026f));
@@ -606,19 +621,34 @@ public sealed class BoardDrawable : IDrawable
         canvas.FillColor = color;
         canvas.FillCircle(a.X, a.Y, dot);
 
-        canvas.DrawLine(a, lineEnd);
+        if (bow > 0f)
+        {
+            // 曲线：按弧长比例收在箭头前（用弦长近似，够准且省事）
+            float t = length <= 0f ? 1f : Math.Clamp(stop / length, 0f, 1f);
+            (float c2x, float c2y, float ex, float ey) = LinkCurve.SubCurve(a.X, a.Y, cx, cy, b.X, b.Y, t);
+            var path = new PathF();
+            path.MoveTo(a.X, a.Y);
+            path.QuadTo(c2x, c2y, ex, ey);
+            canvas.DrawPath(path);
+        }
+        else
+        {
+            canvas.DrawLine(a, new PointF(a.X + (ux * stop), a.Y + (uy * stop)));
+        }
+
         canvas.StrokeDashPattern = null;
         canvas.StrokeLineCap = LineCap.Butt;
 
-        // 箭头
-        float px = -uy;
-        float py = ux;
+        // 箭头：方向取曲线在终点处的切线（直线时就是 a→b 方向）
+        (float tx, float ty) = LinkCurve.EndDirection(cx, cy, b.X, b.Y, ux, uy);
+        float px = -ty;
+        float py = tx;
         float wing = head * 0.5f;
 
         var arrow = new PathF();
         arrow.MoveTo(b.X, b.Y);
-        arrow.LineTo(b.X - (ux * head) + (px * wing), b.Y - (uy * head) + (py * wing));
-        arrow.LineTo(b.X - (ux * head) - (px * wing), b.Y - (uy * head) - (py * wing));
+        arrow.LineTo(b.X - (tx * head) + (px * wing), b.Y - (ty * head) + (py * wing));
+        arrow.LineTo(b.X - (tx * head) - (px * wing), b.Y - (ty * head) - (py * wing));
         arrow.Close();
 
         canvas.FillColor = color;
